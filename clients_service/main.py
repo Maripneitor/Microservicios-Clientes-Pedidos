@@ -3,7 +3,7 @@ import pika
 import json
 import threading
 from fastapi import FastAPI, HTTPException, Depends
-from sqlalchemy import create_all, create_engine, Column, Integer, String
+from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.orm import sessionmaker, Session, declarative_base
 
 app = FastAPI(title="Clients Service")
