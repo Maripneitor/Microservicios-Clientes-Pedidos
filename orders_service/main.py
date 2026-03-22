@@ -20,7 +20,22 @@ class Order(Base):
     product = Column(String(100))
     price = Column(Float)
 
-Base.metadata.create_all(bind=engine)
+import time
+
+def init_db():
+    retries = 5
+    while retries > 0:
+        try:
+            Base.metadata.create_all(bind=engine)
+            break
+        except Exception as e:
+            print(f"Waiting for database... ({retries} retries left)")
+            time.sleep(5)
+            retries -= 1
+
+@app.on_event("startup")
+def startup_event():
+    init_db()
 
 def get_db():
     db = SessionLocal()

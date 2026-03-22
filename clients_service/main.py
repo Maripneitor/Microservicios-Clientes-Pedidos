@@ -20,7 +20,18 @@ class Client(Base):
     email = Column(String(100), unique=True)
     orders_count = Column(Integer, default=0)
 
-Base.metadata.create_all(bind=engine)
+import time
+
+def init_db():
+    retries = 5
+    while retries > 0:
+        try:
+            Base.metadata.create_all(bind=engine)
+            break
+        except Exception as e:
+            print(f"Waiting for database... ({retries} retries left)")
+            time.sleep(5)
+            retries -= 1
 
 def get_db():
     db = SessionLocal()
@@ -55,20 +66,30 @@ def update_client_stats(client_id):
 def rabbitmq_listener():
     rabbitmq_url = os.getenv("RABBITMQ_URL")
     params = pika.URLParameters(rabbitmq_url)
-    connection = pika.BlockingConnection(params)
-    channel = connection.channel()
-    channel.queue_declare(queue='order_notifications', durable=True)
+    
+    while True:
+        try:
+            connection = pika.BlockingConnection(params)
+            channel = connection.channel()
+            channel.queue_declare(queue='order_notifications', durable=True)
 
-    def callback(ch, method, properties, body):
-        data = json.loads(body)
-        print(f"Received order notification: {data}")
-        update_client_stats(data['client_id'])
-        ch.basic_ack(delivery_tag=method.delivery_tag)
+            def callback(ch, method, properties, body):
+                data = json.loads(body)
+                print(f"Received order notification: {data}")
+                update_client_stats(data['client_id'])
+                ch.basic_ack(delivery_tag=method.delivery_tag)
 
-    channel.basic_consume(queue='order_notifications', on_message_callback=callback)
-    print("Clients service listening for RabbitMQ messages...")
-    channel.start_consuming()
+            channel.basic_consume(queue='order_notifications', on_message_callback=callback)
+            print("Clients service listening for RabbitMQ messages...")
+            channel.start_consuming()
+            break
+        except Exception as e:
+            print("Waiting for RabbitMQ...")
+            time.sleep(5)
+
 
 @app.on_event("startup")
 def startup_event():
+    init_db()
     threading.Thread(target=rabbitmq_listener, daemon=True).start()
+
