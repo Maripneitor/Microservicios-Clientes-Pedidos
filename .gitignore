@@ -1,0 +1,9 @@
+# README excluded from git
+README_GUIDE.md
+__pycache__/
+*.pyc
+.env
+.venv
+venv/
+node_modules/
+.DS_Store
